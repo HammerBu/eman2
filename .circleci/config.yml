@@ -4,25 +4,19 @@ jobs:
   build_no_recipe:
     machine: true
     environment:
-      MINICONDA_FILE: "Miniconda3-4.4.10-Linux-x86.sh"
+      MINICONDA_FILE: "Miniconda3-latest-Linux-x86_64.sh"
     steps:
       - run: sudo apt-get update && sudo apt-get install freeglut3-dev
       - checkout
-      - restore_cache:
-          keys:
-            - mini-eman-deps-13.0
       - run: bash ci_support/build_no_recipe.sh
 
   build_recipe:
     machine: true
     environment:
-      MINICONDA_FILE: "Miniconda3-4.4.10-Linux-x86.sh"
+      MINICONDA_FILE: "Miniconda3-latest-Linux-x86_64.sh"
     steps:
       - run: sudo apt-get update && sudo apt-get install freeglut3-dev
       - checkout
-      - restore_cache:
-          keys:
-            - mini-eman-deps-13.0
       - run: bash ci_support/build_recipe.sh
 
 workflows:

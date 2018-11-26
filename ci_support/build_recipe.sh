@@ -6,15 +6,9 @@ MYDIR="$(cd "$(dirname "$0")"; pwd -P)"
 
 bash "${MYDIR}/../tests/future_import_tests.sh"
 
-if [ ! -z ${TRAVIS} ];then
-    source ci_support/setup_conda.sh
+source ci_support/setup_conda.sh
 
-    conda install conda-build=3 -c defaults --yes --quiet
-fi
-
-if [ ! -z ${CIRCLECI} ];then
-    source ${HOME}/miniconda2/bin/activate root
-fi
+conda install conda-build=3 -c defaults --yes --quiet
 
 python -m compileall -q .
 
