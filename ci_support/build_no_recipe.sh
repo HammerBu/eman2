@@ -8,7 +8,7 @@ source ci_support/setup_conda.sh
 
 # Following Wiki instructions at
 # http://blake.bcm.edu/emanwiki/EMAN2/COMPILE_EMAN2_ANACONDA
-conda install eman-deps=15.2 -c cryoem/label/dev -c cryoem -c defaults -c conda-forge --yes --quiet
+conda install eman-deps=15.3 -c cryoem/label/dev -c cryoem -c defaults -c conda-forge --yes --quiet
 
 # Build and install eman2
 rm -vf ${CONDA_PREFIX}/bin/e2*.py
