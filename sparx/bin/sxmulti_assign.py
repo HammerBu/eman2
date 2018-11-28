@@ -32,19 +32,24 @@ from __future__ import print_function
 #
 #
 
+import configparser
+import development
+import global_def
+import mpi
+import optparse
+import os
+import sparx_global_def
+import sparx_utilities
+import sys
+import utilities
 from future import standard_library
 standard_library.install_aliases()
-import os
-import global_def
-from   global_def import *
-from   optparse import OptionParser
-import sys, configparser
 
 def main():
 	progname = os.path.basename(sys.argv[0])
 	usage = progname + " configure_file.cfg"
 	
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	parser.add_option("--ir", type="float", default=1, help="  inner radius for rotational correlation (set to 1)")
 	parser.add_option("--ou", type="float", default=-1, help="  outer radius for rotational correlation (set to the radius of the particle)")
 	parser.add_option("--rs", type="float", default=1, help="  step between rings in rotational correlation (set to 1)" )
@@ -70,22 +75,18 @@ def main():
 	else:	mask = None
 
 	if global_def.CACHE_DISABLE:
-		from utilities import disable_bdb_cache
-		disable_bdb_cache()
+		sparx_utilities.disable_bdb_cache()
 
 	if options.MPI:
-		from mpi import mpi_init
-		sys.argv = mpi_init(len(sys.argv),sys.argv)		
+		sys.argv = mpi.mpi_init(len(sys.argv),sys.argv)		
 		
-	from development import multi_assign
 	global_def.BATCH = True
 	multi_assign(args[0], args[1], args[2], mask, options.ir, options.ou, options.rs, options.xr, options.yr, options.ts,  
 			options.CTF, options.CUDA, options.GPUID, options.SA, options.T, options.F, options.heads_up, options.MPI)
 	global_def.BATCH = False
 
 	if options.MPI:
-		from mpi import mpi_finalize
-		mpi_finalize()
+		mpi.mpi_finalize()
 
 
 if __name__ == "__main__":

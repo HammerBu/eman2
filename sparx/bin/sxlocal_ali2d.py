@@ -32,16 +32,20 @@ from __future__ import print_function
 #
 #
 
-
-import os
+import applications
 import global_def
-from global_def import *
-from optparse import OptionParser
+import optparse
+import os
+import sparx_applications
+import sparx_global_def
+import sparx_utilities
 import sys
+import utilities
+
 def main():
 	progname = os.path.basename(sys.argv[0])
 	usage = progname + " stack outdir <maskfile> --ou=outer_radius --br=brackets --center=center_type --eps=epsilon --maxit=max_iter --CTF --snr=SNR --function=user_function_name"
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	parser.add_option("--ou", type="float", default=-1, help="  outer radius for a 2-D mask within which the alignment is performed")
 	parser.add_option("--br", type="float", default=1.75, help="  brackets for the search of orientation parameters (each parameter will be checked +/- bracket (set to 1.75)")
 	parser.add_option("--center", type="float", default=1, help="  0 - if you do not want the average to be centered, 1 - center the average (default=1)")
@@ -60,14 +64,12 @@ def main():
 		else:
 			mask = args[2]
 		
-		from applications import local_ali2d
 
 		if global_def.CACHE_DISABLE:
-			from utilities import disable_bdb_cache
-			disable_bdb_cache()
+			sparx_utilities.disable_bdb_cache()
 		
 		global_def.BATCH = True	
-		local_ali2d(args[0], args[1], mask, options.ou, options.br, options.center, options.eps, options.maxit, options.CTF, options.snr, options.function)
+		sparx_applications.local_ali2d(args[0], args[1], mask, options.ou, options.br, options.center, options.eps, options.maxit, options.CTF, options.snr, options.function)
 		global_def.BATCH = False	
 if __name__ == "__main__":
 	main()

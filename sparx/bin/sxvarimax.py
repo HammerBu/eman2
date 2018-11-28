@@ -32,19 +32,24 @@ from __future__ import print_function
 #
 #
 
-from builtins import range
+import applications
 import global_def
-from global_def import *
-from optparse import OptionParser
-
+import optparse
 import os
+import sparx_applications
+import sparx_global_def
+import sparx_utilities
+import string
 import sys
+import utilities
+from builtins import range
+
 
       
 def main():
     progname = os.path.basename(sys.argv[0])
     usage = progname + " input_stack start end output_stack  <mask> --rad=mask_radius"
-    parser = OptionParser(usage, version=SPARXVERSION)
+    parser = optparse.OptionParser(usage, version=sparx_global_def.SPARXVERSION)
     parser.add_option("--rad",     type="int", default=-1, help="radius of mask")
     parser.add_option("--verbose", type="int", default=0,  help="verbose level (0|1)")
 
@@ -57,20 +62,17 @@ def main():
         print("usage: " + usage)
         print("Please run '" + progname + " -h' for details")
     else:
-        from string import atoi
         input_stack  = args[0]
-        imgstart     = atoi( args[1] )
-        imgend       = atoi( args[2] ) +1
+        imgstart     = string.atoi( args[1] )
+        imgend       = string.atoi( args[2] ) +1
         output_stack = args[3]
         if(len(args) == 5):  mask = args[4]
         else:               mask = None
 
     if global_def.CACHE_DISABLE:
-        from utilities import disable_bdb_cache
-        disable_bdb_cache()
-    from applications import varimax
+        sparx_utilities.disable_bdb_cache()
     global_def.BATCH = True
-    varimax(input_stack, list(range(imgstart, imgend)), output_stack, mask, options.rad, options.verbose)
+    sparx_applications.varimax(input_stack, list(range(imgstart, imgend)), output_stack, mask, options.rad, options.verbose)
     global_def.BATCH = False
 
 if __name__ == "__main__":

@@ -32,18 +32,29 @@ from __future__ import print_function
 #
 #
 from builtins import range
-import	global_def
-from	global_def import *
-from	EMAN2 import *
-from	sparx import *
-from	global_def import SPARX_MPI_TAG_UNIVERSAL
+import EMAN2
+import EMAN2_cppwrap
+import global_def
+import mpi
+import optparse
+import os
+import sparx
+import sparx_filter
+import sparx_fundamentals
+import sparx_global_def
+import sparx_morphology
+import sparx_statistics
+import sparx_utilities
+import statistics
+import sys
+import utilities
 
 #Transforms the local resolution file from frequency units to angstroms.
 def makeAngRes(freqvol, nx, ny, nz, pxSize):
 	if (pxSize == 1.0):
 		print("Using a value of 1 for the pixel size. Are you sure this is correct?")
 
-	outAngResVol = model_blank(nx,ny,nz)
+	outAngResVol = sparx_utilities.model_blank(nx,ny,nz)
 	for x in range(nx):
 		for y in range(ny):
 			for z in range(nz):
@@ -54,9 +65,6 @@ def makeAngRes(freqvol, nx, ny, nz, pxSize):
 	return outAngResVol
 
 def main():
-	import os
-	import sys
-	from optparse import OptionParser
 	arglist = []
 	for arg in sys.argv:
 		arglist.append( arg )
@@ -65,7 +73,7 @@ def main():
 
 	Compute local resolution in real space within area outlined by the maskfile and within regions wn x wn x wn
 	"""
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	
 	parser.add_option("--wn",           type="int",           default=7,      help="Size of window within which local real-space FSC is computed. (default 7)")
 	parser.add_option("--step",         type="float",         default= 1.0,   help="Shell step in Fourier size in pixels. (default 1.0)")   
@@ -84,19 +92,15 @@ def main():
 		sys.exit()
 
 	if global_def.CACHE_DISABLE:
-		from utilities import disable_bdb_cache
-		disable_bdb_cache()
+		sparx_utilities.disable_bdb_cache()
 
 	res_overall = options.res_overall
 
 	if options.MPI:
-		from mpi 	  	  import mpi_init, mpi_comm_size, mpi_comm_rank, MPI_COMM_WORLD
-		from mpi 	  	  import mpi_reduce, mpi_bcast, mpi_barrier, mpi_gatherv, mpi_send, mpi_recv
-		from mpi 	  	  import MPI_SUM, MPI_FLOAT, MPI_INT
-		sys.argv = mpi_init(len(sys.argv),sys.argv)		
+		sys.argv = mpi.mpi_init(len(sys.argv),sys.argv)		
 
-		number_of_proc = mpi_comm_size(MPI_COMM_WORLD)
-		myid = mpi_comm_rank(MPI_COMM_WORLD)
+		number_of_proc = mpi.mpi_comm_size(mpi.MPI_COMM_WORLD)
+		myid = mpi.mpi_comm_rank(mpi.MPI_COMM_WORLD)
 		main_node = 0
 		global_def.MPI = True
 		cutoff = options.cutoff
@@ -105,8 +109,8 @@ def main():
 
 		if(myid == main_node):
 			#print sys.argv
-			vi = get_im(sys.argv[1])
-			ui = get_im(sys.argv[2])
+			vi = sparx_utilities.get_im(sys.argv[1])
+			ui = sparx_utilities.get_im(sys.argv[2])
 			
 			nx = vi.get_xsize()
 			ny = vi.get_ysize()
@@ -117,30 +121,29 @@ def main():
 
 		global_def.BATCH = True
 
-		dis = bcast_list_to_all(dis, myid, source_node = main_node)
+		dis = sparx_utilities.bcast_list_to_all(dis, myid, source_node = main_node)
 
 		if(myid != main_node):
 			nx = int(dis[0])
 			ny = int(dis[1])
 			nz = int(dis[2])
 
-			vi = model_blank(nx,ny,nz)
-			ui = model_blank(nx,ny,nz)
+			vi = sparx_utilities.model_blank(nx,ny,nz)
+			ui = sparx_utilities.model_blank(nx,ny,nz)
 
 
 		if len(args) == 3:
-			m = model_circle((min(nx,ny,nz)-nk)//2,nx,ny,nz)
+			m = sparx_utilities.model_circle((min(nx,ny,nz)-nk)//2,nx,ny,nz)
 			outvol = args[2]
 		
 		elif len(args) == 4:
 			if(myid == main_node):
-				m = binarize(get_im(args[2]), 0.5)
+				m = sparx_morphology.binarize(sparx_utilities.get_im(args[2]), 0.5)
 			else:
-				m = model_blank(nx, ny, nz)
+				m = sparx_utilities.model_blank(nx, ny, nz)
 			outvol = args[3]
-		bcast_EMData_to_all(m, myid, main_node)
+		sparx_utilities.bcast_EMData_to_all(m, myid, main_node)
 
-		from statistics import locres
 		"""
 		res_overall = 0.5
 		if myid ==main_node:
@@ -151,10 +154,10 @@ def main():
 					break
 		res_overall = bcast_number_to_all(res_overall, main_node)
 		"""
-		freqvol, resolut = locres(vi, ui, m, nk, cutoff, options.step, myid, main_node, number_of_proc)
+		freqvol, resolut = sparx_statistics.locres(vi, ui, m, nk, cutoff, options.step, myid, main_node, number_of_proc)
 		if(myid == 0):
 			if res_overall !=-1.0:
-				freqvol += (res_overall- Util.infomask(freqvol, m, True)[0])
+				freqvol += (res_overall- EMAN2_cppwrap.Util.infomask(freqvol, m, True)[0])
 				for ifreq in range(len(resolut)):
 					if resolut[ifreq][0] >res_overall:
 						 break
@@ -167,30 +170,29 @@ def main():
 				outAngResVol = makeAngRes(freqvol, nx, ny, nz, options.apix)
 				outAngResVol.write_image(outAngResVolName)
 
-			if(options.fsc != None): write_text_row(resolut, options.fsc)
-		from mpi import mpi_finalize
-		mpi_finalize()
+			if(options.fsc != None): sparx_utilities.write_text_row(resolut, options.fsc)
+		mpi.mpi_finalize()
 
 	else:
 		cutoff = options.cutoff
-		vi = get_im(args[0])
-		ui = get_im(args[1])
+		vi = sparx_utilities.get_im(args[0])
+		ui = sparx_utilities.get_im(args[1])
 
 		nn = vi.get_xsize()
 		nk = int(options.wn)
 	
 		if len(args) == 3:
-			m = model_circle((nn-nk)//2,nn,nn,nn)
+			m = sparx_utilities.model_circle((nn-nk)//2,nn,nn,nn)
 			outvol = args[2]
 		
 		elif len(args) == 4:
-			m = binarize(get_im(args[2]), 0.5)
+			m = sparx_morphology.binarize(sparx_utilities.get_im(args[2]), 0.5)
 			outvol = args[3]
 
-		mc = model_blank(nn,nn,nn,1.0)-m
+		mc = sparx_utilities.model_blank(nn,nn,nn,1.0)-m
 
-		vf = fft(vi)
-		uf = fft(ui)
+		vf = sparx_fundamentals.fft(vi)
+		uf = sparx_fundamentals.fft(ui)
 		"""		
 		res_overall = 0.5
 		fsc_curve = fsc(vi, ui)
@@ -202,41 +204,41 @@ def main():
 		lp = int(nn/2/options.step+0.5)
 		step = 0.5/lp
 
-		freqvol = model_blank(nn,nn,nn)
+		freqvol = sparx_utilities.model_blank(nn,nn,nn)
 		resolut = []
 		for i in range(1,lp):
 			fl = step*i
 			fh = fl+step
 			#print(lp,i,step,fl,fh)
-			v = fft(filt_tophatb( vf, fl, fh))
-			u = fft(filt_tophatb( uf, fl, fh))
-			tmp1 = Util.muln_img(v,v)
-			tmp2 = Util.muln_img(u,u)
+			v = sparx_fundamentals.fft(sparx_filter.filt_tophatb( vf, fl, fh))
+			u = sparx_fundamentals.fft(sparx_filter.filt_tophatb( uf, fl, fh))
+			tmp1 = EMAN2_cppwrap.Util.muln_img(v,v)
+			tmp2 = EMAN2_cppwrap.Util.muln_img(u,u)
 
-			do = Util.infomask(square_root(threshold(Util.muln_img(tmp1,tmp2))),m,True)[0]
+			do = EMAN2_cppwrap.Util.infomask(sparx_morphology.square_root(sparx_morphology.threshold(EMAN2_cppwrap.Util.muln_img(tmp1,tmp2))),m,True)[0]
 
 
-			tmp3 = Util.muln_img(u,v)
-			dp = Util.infomask(tmp3,m,True)[0]
+			tmp3 = EMAN2_cppwrap.Util.muln_img(u,v)
+			dp = EMAN2_cppwrap.Util.infomask(tmp3,m,True)[0]
 			resolut.append([i,(fl+fh)/2.0, dp/do])
 
-			tmp1 = Util.box_convolution(tmp1, nk)
-			tmp2 = Util.box_convolution(tmp2, nk)
-			tmp3 = Util.box_convolution(tmp3, nk)
+			tmp1 = EMAN2_cppwrap.Util.box_convolution(tmp1, nk)
+			tmp2 = EMAN2_cppwrap.Util.box_convolution(tmp2, nk)
+			tmp3 = EMAN2_cppwrap.Util.box_convolution(tmp3, nk)
 
-			Util.mul_img(tmp1,tmp2)
+			EMAN2_cppwrap.Util.mul_img(tmp1,tmp2)
 
-			tmp1 = square_root(threshold(tmp1))
+			tmp1 = sparx_morphology.square_root(sparx_morphology.threshold(tmp1))
 
-			Util.mul_img(tmp1,m)
-			Util.add_img(tmp1,mc)
+			EMAN2_cppwrap.Util.mul_img(tmp1,m)
+			EMAN2_cppwrap.Util.add_img(tmp1,mc)
 
-			Util.mul_img(tmp3,m)
-			Util.add_img(tmp3,mc)
+			EMAN2_cppwrap.Util.mul_img(tmp3,m)
+			EMAN2_cppwrap.Util.add_img(tmp3,mc)
 
-			Util.div_img(tmp3,tmp1)
+			EMAN2_cppwrap.Util.div_img(tmp3,tmp1)
 
-			Util.mul_img(tmp3,m)
+			EMAN2_cppwrap.Util.mul_img(tmp3,m)
 			freq=(fl+fh)/2.0
 			bailout = True
 			for x in range(nn):
@@ -252,7 +254,7 @@ def main():
 			if(bailout):  break
 		#print(len(resolut))
 		if res_overall !=-1.0:
-			freqvol += (res_overall- Util.infomask(freqvol, m, True)[0])
+			freqvol += (res_overall- EMAN2_cppwrap.Util.infomask(freqvol, m, True)[0])
 			for ifreq in range(len(resolut)):
 				if resolut[ifreq][1] >res_overall:
 					 break
@@ -265,7 +267,7 @@ def main():
 			outAngResVol = makeAngRes(freqvol, nn, nn, nn, options.apix)
 			outAngResVol.write_image(outAngResVolName)
 
-		if(options.fsc != None): write_text_row(resolut, options.fsc)
+		if(options.fsc != None): sparx_utilities.write_text_row(resolut, options.fsc)
 
 if __name__ == "__main__":
 	main()

@@ -32,15 +32,19 @@ from __future__ import print_function
 #
 #
 
-import os
+import applications
 import global_def
-from   global_def import *
-from   optparse import OptionParser
+import optparse
+import os
+import sparx_applications
+import sparx_global_def
+import sparx_utilities
 import sys
+import utilities
 def main():
 	progname = os.path.basename(sys.argv[0])
 	usage = progname + " input_stack output_stack average --avg --CTF"
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	parser.add_option("--avg", action="store_true", default=True, help="  Subtract averages computed within corners of individual images, default False")
 	parser.add_option("--CTF", action="store_true", default=False, help="  Consider CTF correction during the alignment, dafault False")
 	(options, args) = parser.parse_args()    	
@@ -49,11 +53,9 @@ def main():
 		print("Please run '" + progname + " -h' for detailed options")
 	else:
 		if global_def.CACHE_DISABLE:
-			from utilities import disable_bdb_cache
-			disable_bdb_cache()
-		from applications  import  prepare_2d_forPCA
+			sparx_utilities.disable_bdb_cache()
 		global_def.BATCH = True
-		prepare_2d_forPCA(args[0], args[1], args[2], options.avg, options.CTF)
+		sparx_applications.prepare_2d_forPCA(args[0], args[1], args[2], options.avg, options.CTF)
 		global_def.BATCH = False
 	
 if __name__ == "__main__":

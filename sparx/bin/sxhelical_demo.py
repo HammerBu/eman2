@@ -32,15 +32,26 @@ from __future__ import print_function
 #
 #
 
+import EMAN2
+import EMAN2_cppwrap
+import filter
+import fundamentals
+import global_def
+import optparse
+import os
+import projection
+import random
+import sparx_filter
+import sparx_fundamentals
+import sparx_global_def
+import sparx_projection
+import sparx_utilities
+import sys
+import user_functions
+import utilities
 # clean up the code, make documentation
 
 from builtins import range
-import os
-import global_def
-from   global_def     import *
-from   user_functions import *
-from   optparse       import OptionParser
-import sys
 
 def main():
 	progname = os.path.basename(sys.argv[0])
@@ -68,7 +79,7 @@ def main():
 	
 		sxhelical_demo.py --generate_script --filename=run --seg_ny=180 --ptcl_dist=15 --fract=0.35
 	"""
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	
 	# helicise the Atom coordinates
 	
@@ -117,7 +128,6 @@ def main():
 			generate_helimic(args[0], args[1], options.apix, options.CTF, options.Cs, options.voltage, options.ac, options.nonoise, options.rand_seed)
 
 		if options.generate_noisycyl:
-			from utilities import model_cylinder, model_gauss_noise
 			outvol = args[0]
 			boxdims = options.boxsize.split(',')
 			if len(boxdims) < 1 or len(boxdims) > 3:
@@ -132,10 +142,9 @@ def main():
 				if len(boxdims) == 3:
 					nz = int(boxdims[2])
 					
-			(model_cylinder(options.rad,nx, ny, nz)*model_gauss_noise(1.0, nx, ny, nz) ).write_image(outvol)
+			(sparx_utilities.model_cylinder(options.rad,nx, ny, nz)*sparx_utilities.model_gauss_noise(1.0, nx, ny, nz) ).write_image(outvol)
 
 		if options.generate_mask:
-			from utilities import model_blank, pad
 			outvol = args[0]
 			maskdims = options.masksize.split(',')
 			if len(maskdims) < 1 or len(maskdims) > 2:
@@ -147,22 +156,20 @@ def main():
 			else:
 				ny = int(maskdims[1])
 					
-			mask = pad(model_blank(options.maskwidth, ny, 1, 1.0), nx, ny, 1, 0.0)
+			mask = sparx_utilities.pad(sparx_utilities.model_blank(options.maskwidth, ny, 1, 1.0), nx, ny, 1, 0.0)
 			mask.write_image(outvol)
 		
 		if options.applyparams:
-			from utilities    import get_im, get_params2D, set_params2D
-			from fundamentals import cyclic_shift
 			stack = args[0]
 			newstack = args[1]
-			mask = get_im(args[2])
-			nima = EMUtil.get_image_count(stack)
+			mask = sparx_utilities.get_im(args[2])
+			nima = EMAN2_cppwrap.EMUtil.get_image_count(stack)
 			for im in range(nima):
-				prj = get_im(stack,im)
-				alpha, sx, sy, mirror, scale = get_params2D(prj)
-				prj = cyclic_shift(prj, int(sx))
-				set_params2D(prj, [0.0,0.,0.0,0,1])
-				stat = Util.infomask(prj , mask, False )
+				prj = sparx_utilities.get_im(stack,im)
+				alpha, sx, sy, mirror, scale = sparx_utilities.get_params2D(prj)
+				prj = sparx_fundamentals.cyclic_shift(prj, int(sx))
+				sparx_utilities.set_params2D(prj, [0.0,0.,0.0,0,1])
+				stat = EMAN2_cppwrap.Util.infomask(prj , mask, False )
 				prj= (prj-stat[0])/stat[1]
 				ctf_params = prj.get_attr("ctf")
 				prj.set_attr('ctf_applied', 0)
@@ -170,54 +177,48 @@ def main():
 
 def generate_helimic(refvol, outdir, pixel, CTF=False, Cs=2.0,voltage = 200.0, ampcont = 10.0, nonoise = False, rand_seed=14567):
 	
-	from utilities	 import model_blank, model_gauss, model_gauss_noise, pad, get_im
-	from random 	 import random
-	from projection  import prgs, prep_vol
-	from filter	     import filt_gaussl, filt_ctf
-	from EMAN2 	     import EMAN2Ctf
 	
-	if os.path.exists(outdir):   ERROR('Output directory exists, please change the name and restart the program', "sxhelical_demo", 1)
+	if os.path.exists(outdir):   sparx_global_def.ERROR('Output directory exists, please change the name and restart the program', "sxhelical_demo", 1)
 	os.mkdir(outdir)
-	seed(rand_seed)
-	Util.set_randnum_seed(rand_seed)
+	random.seed(rand_seed)
+	EMAN2_cppwrap.Util.set_randnum_seed(rand_seed)
 	angles =[]
 	for i in range(3):
 		angles.append( [0.0+60.0*i, 90.0-i*5, 0.0, 0.0, 0.0] )
 
 	nangle   = len(angles)
 
-	volfts = get_im(refvol)
+	volfts = sparx_utilities.get_im(refvol)
 	nx = volfts.get_xsize()
 	ny = volfts.get_ysize()
 	nz = volfts.get_zsize()
-	volfts, kbx, kby, kbz = prep_vol( volfts )
+	volfts, kbx, kby, kbz = sparx_projection.prep_vol( volfts )
 	iprj   = 0
 	width  = 500
 	xstart = 0
 	ystart = 0
 
 	for idef in range(3,6):
-		mic = model_blank(2048, 2048)
+		mic = sparx_utilities.model_blank(2048, 2048)
 		#defocus = idef*0.2
 		defocus = idef*0.6     ##@ming
 		if CTF :
 			#ctf = EMAN2Ctf()
 			#ctf.from_dict( {"defocus":defocus, "cs":Cs, "voltage":voltage, "apix":pixel, "ampcont":ampcont, "bfactor":0.0} )
-			from utilities import generate_ctf
-			ctf = generate_ctf([defocus,2,200,1.84,0.0,ampcont,defocus*0.2,80])   ##@ming   the range of astigmatism amplitude is between 10 percent and 22 percent. 20 percent is a good choice.
+			ctf = sparx_utilities.generate_ctf([defocus,2,200,1.84,0.0,ampcont,defocus*0.2,80])   ##@ming   the range of astigmatism amplitude is between 10 percent and 22 percent. 20 percent is a good choice.
 		i = idef - 4
 		for k in range(1):
 			psi  = 90 + 10*i			
-			proj = prgs(volfts, kbz, [angles[idef-3][0], angles[idef-3][1], psi, 0.0, 0.0], kbx, kby)
-			proj = Util.window(proj, 320, nz)		
-			mic += pad(proj, 2048, 2048, 1, 0.0, 750*i, 20*i, 0)
+			proj = sparx_projection.prgs(volfts, kbz, [angles[idef-3][0], angles[idef-3][1], psi, 0.0, 0.0], kbx, kby)
+			proj = EMAN2_cppwrap.Util.window(proj, 320, nz)		
+			mic += sparx_utilities.pad(proj, 2048, 2048, 1, 0.0, 750*i, 20*i, 0)
 
-		if not nonoise:  mic += model_gauss_noise(30.0,2048,2048)
+		if not nonoise:  mic += sparx_utilities.model_gauss_noise(30.0,2048,2048)
 		if CTF :
 			#apply CTF
-			mic = filt_ctf(mic, ctf)
+			mic = sparx_filter.filt_ctf(mic, ctf)
 
-		if not nonoise:  mic += filt_gaussl(model_gauss_noise(17.5,2048,2048), 0.3)
+		if not nonoise:  mic += sparx_filter.filt_gaussl(sparx_utilities.model_gauss_noise(17.5,2048,2048), 0.3)
 
 		mic.write_image("%s/mic%1d.hdf"%(outdir, idef-3),0)
 

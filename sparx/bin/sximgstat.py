@@ -32,13 +32,17 @@ from __future__ import print_function
 #
 #
 
+import applications
 import global_def
-from   global_def     import *
+import optparse
+import os
+import sparx_applications
+import sparx_global_def
+import sparx_utilities
+import sys
+import utilities
 
 def main():
-	import os
-	import sys
-	from optparse    import OptionParser
 
 	arglist = []
 	for arg in sys.argv:
@@ -46,7 +50,7 @@ def main():
 
 	progname = os.path.basename( arglist[0] )
 	usage = progname + "  stack1 <stack2> <mask> --ccc --fsc file --inf --rad=r"
-	parser = OptionParser(usage, version=SPARXVERSION)
+	parser = optparse.OptionParser(usage, version=sparx_global_def.SPARXVERSION)
 
 	parser.add_option( "--ccc", action="store_true", default=False, help="print cross corelation coefficient" )
 	parser.add_option( "--fsc", type="string",       default="",    help="calculate resolution curve" )
@@ -62,11 +66,9 @@ def main():
 
 
 	if global_def.CACHE_DISABLE:
-		from utilities import disable_bdb_cache
-		disable_bdb_cache()
-	from applications import imgstat
+		sparx_utilities.disable_bdb_cache()
 	global_def.BATCH = True
-	imgstat( args, options.ccc, options.fsc, options.inf, options.rad )
+	sparx_applications.imgstat( args, options.ccc, options.fsc, options.inf, options.rad )
 
 if __name__=="__main__":
 	main()

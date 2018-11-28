@@ -32,17 +32,21 @@ from __future__ import print_function
 #
 #
 
-
-import os
+import applications
 import global_def
-from   global_def import *
-from   optparse import OptionParser
+import optparse
+import os
+import sparx_applications
+import sparx_global_def
+import sparx_utilities
 import sys
+import utilities
+
 def main():
 	
 	progname = os.path.basename(sys.argv[0])
 	usage    = progname + " stack dendoname averages_name --K=number_of_groups"
-	parser   = OptionParser(usage,version=SPARXVERSION)
+	parser   = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	parser.add_option("--K", type="int", default=2, help="Number of classes (default 2)")
 	
 	(options, args) = parser.parse_args()
@@ -51,11 +55,9 @@ def main():
 		print("Please run '" + progname + " -h' for detailed options")
 	else:
 		if global_def.CACHE_DISABLE:
-			from utilities import disable_bdb_cache
-			disable_bdb_cache()
-		from  applications  import  HAC_averages
+			sparx_utilities.disable_bdb_cache()
 		global_def.BATCH = True
-		HAC_averages(args[0], args[1], args[2], options.K)
+		sparx_applications.HAC_averages(args[0], args[1], args[2], options.K)
 		global_def.BATCH = False
 
 if __name__ == "__main__":

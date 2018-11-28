@@ -29,17 +29,17 @@ from __future__ import print_function
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-from utilities       import *
-from filter          import *
-from projection      import *
-from fundamentals    import *
-from statistics      import *
-from alignment       import *
-from morphology      import *
-from reconstruction  import *
-from applications    import *
-from user_functions  import *
-from global_def      import *
-from pixel_error     import *
-from development     import *
-from multi_shc       import *
+import alignment
+import applications
+import development
+import filter
+import fundamentals
+import global_def
+import morphology
+import multi_shc
+import pixel_error
+import projection
+import reconstruction
+import statistics
+import user_functions
+import utilities

@@ -32,18 +32,28 @@ from __future__ import print_function
 #
 #
 
+import EMAN2_cppwrap
+import applications
+import filter
+import fundamentals
+import global_def
+import optparse
+import os
+import pixel_error
+import sparx_applications
+import sparx_filter
+import sparx_fundamentals
+import sparx_global_def
+import sparx_pixel_error
+import sparx_utilities
+import sys
+import utilities
 
 from builtins import range
-import os
-import global_def
-from   global_def     import *
-from   optparse       import OptionParser
-import sys
 def main():
-	from utilities import get_input_from_string
 	progname = os.path.basename(sys.argv[0])
 	usage = progname + " stack output_average --radius=particle_radius --xr=xr --yr=yr --ts=ts --thld_err=thld_err --num_ali=num_ali --fl=fl --aa=aa --CTF --verbose --stables"
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	parser.add_option("--radius",       type="int",              default=-1,          help=" particle radius for alignment")
 	parser.add_option("--xr",           type="string"      ,     default="2 1",       help="range for translation search in x direction, search is +/xr (default 2,1)")
 	parser.add_option("--yr",           type="string"      ,     default="-1",        help="range for translation search in y direction, search is +/yr (default = same as xr)")
@@ -63,34 +73,28 @@ def main():
     		print("Please run '" + progname + " -h' for detailed options")
 	else:
 		if global_def.CACHE_DISABLE:
-			from utilities import disable_bdb_cache
-			disable_bdb_cache()
+			sparx_utilities.disable_bdb_cache()
 
-		from applications   import within_group_refinement, ali2d_ras
-		from pixel_error    import multi_align_stability
-		from utilities      import write_text_file, write_text_row
 
 		global_def.BATCH = True
 
-		xrng        = get_input_from_string(options.xr)
+		xrng        = sparx_utilities.get_input_from_string(options.xr)
 		if  options.yr == "-1":  yrng = xrng
-		else          :  yrng = get_input_from_string(options.yr)
-		step        = get_input_from_string(options.ts)
+		else          :  yrng = sparx_utilities.get_input_from_string(options.yr)
+		step        = sparx_utilities.get_input_from_string(options.ts)
 
-		class_data = EMData.read_images(args[0])
+		class_data = EMAN2_cppwrap.EMData.read_images(args[0])
 
 		nx = class_data[0].get_xsize()
 		ou = options.radius
 		num_ali = options.num_ali
 		if ou == -1: ou = nx/2-2
-		from utilities import model_circle, get_params2D, set_params2D
-		mask = model_circle(ou, nx, nx)
+		mask = sparx_utilities.model_circle(ou, nx, nx)
 
 		if options.CTF :
-			from filter import filt_ctf
 			for im in range(len(class_data)):
 				#  Flip phases
-				class_data[im] = filt_ctf(class_data[im], class_data[im].get_attr("ctf"), binary=1)
+				class_data[im] = sparx_filter.filt_ctf(class_data[im], class_data[im].get_attr("ctf"), binary=1)
 		for im in class_data:
 			im.set_attr("previousmax", -1.0e10)
 			try:
@@ -99,9 +103,9 @@ def main():
 				try:
 					t = im.get_attr("xform.projection")
 					d = t.get_params("spider")
-					set_params2D(im, [0.0, -d["tx"], -d["ty"], 0, 1.0])
+					sparx_utilities.set_params2D(im, [0.0, -d["tx"], -d["ty"], 0, 1.0])
 				except:
-					set_params2D(im, [0.0, 0.0, 0.0, 0, 1.0])
+					sparx_utilities.set_params2D(im, [0.0, 0.0, 0.0, 0, 1.0])
 		all_ali_params = []
 
 		for ii in range(num_ali):
@@ -112,15 +116,14 @@ def main():
 				SY = []
 				MIRROR = []
 			if( xrng[0] == 0.0 and yrng[0] == 0.0 ):
-				avet = ali2d_ras(class_data, randomize = True, ir = 1, ou = ou, rs = 1, step = 1.0, dst = 90.0, \
+				avet = sparx_applications.ali2d_ras(class_data, randomize = True, ir = 1, ou = ou, rs = 1, step = 1.0, dst = 90.0, \
 						maxit = options.maxit, check_mirror = True, FH=options.fl, FF=options.aa)
 			else:
-				avet = within_group_refinement(class_data, mask, True, 1, ou, 1, xrng, yrng, step, 90.0, \
+				avet = sparx_applications.within_group_refinement(class_data, mask, True, 1, ou, 1, xrng, yrng, step, 90.0, \
 						maxit = options.maxit, FH=options.fl, FF=options.aa, method = options.method)
-				from utilities import info
 				#print "  avet  ",info(avet)
 			for im in class_data:
-				alpha, sx, sy, mirror, scale = get_params2D(im)
+				alpha, sx, sy, mirror, scale = sparx_utilities.get_params2D(im)
 				ali_params.extend([alpha, sx, sy, mirror])
 				if options.verbose:
 					ALPHA.append(alpha)
@@ -129,10 +132,9 @@ def main():
 					MIRROR.append(mirror)
 			all_ali_params.append(ali_params)
 			if options.verbose:
-				write_text_file([ALPHA, SX, SY, MIRROR], "ali_params_run_%d"%ii)
+				sparx_utilities.write_text_file([ALPHA, SX, SY, MIRROR], "ali_params_run_%d"%ii)
 		"""
 		avet = class_data[0]
-		from utilities import read_text_file
 		all_ali_params = []
 		for ii in xrange(5):
 			temp = read_text_file( "ali_params_run_%d"%ii,-1)
@@ -144,28 +146,27 @@ def main():
 
 		"""
 
-		stable_set, mir_stab_rate, pix_err = multi_align_stability(all_ali_params, 0.0, 10000.0, options.thld_err, options.verbose, 2*ou+1)
+		stable_set, mir_stab_rate, pix_err = sparx_pixel_error.multi_align_stability(all_ali_params, 0.0, 10000.0, options.thld_err, options.verbose, 2*ou+1)
 		print("%4s %20s %20s %20s %30s %6.2f"%("", "Size of set", "Size of stable set", "Mirror stab rate", "Pixel error prior to pruning the set above threshold of",options.thld_err))
 		print("Average stat: %10d %20d %20.2f   %15.2f"%( len(class_data), len(stable_set), mir_stab_rate, pix_err))
 		if( len(stable_set) > 0):
 			if options.stables:
 				stab_mem = [[0,0.0,0] for j in range(len(stable_set))]
 				for j in range(len(stable_set)): stab_mem[j] = [int(stable_set[j][1]), stable_set[j][0], j]
-				write_text_row(stab_mem, "stable_particles.txt")
+				sparx_utilities.write_text_row(stab_mem, "stable_particles.txt")
 
 			stable_set_id = []
 			particle_pixerr = []
 			for s in stable_set:
 				stable_set_id.append(s[1])
 				particle_pixerr.append(s[0])
-			from fundamentals import rot_shift2D
 			avet.to_zero()
 			l = -1
 			print("average parameters:  angle, x-shift, y-shift, mirror")
 			for j in stable_set_id:
 				l += 1
 				print(" %4d  %4d  %12.2f %12.2f %12.2f        %1d"%(l,j, stable_set[l][2][0], stable_set[l][2][1], stable_set[l][2][2], int(stable_set[l][2][3])))
-				avet += rot_shift2D(class_data[j], stable_set[l][2][0], stable_set[l][2][1], stable_set[l][2][2], stable_set[l][2][3] )
+				avet += sparx_fundamentals.rot_shift2D(class_data[j], stable_set[l][2][0], stable_set[l][2][1], stable_set[l][2][2], stable_set[l][2][3] )
 			avet /= (l+1)
 			avet.set_attr('members', stable_set_id)
 			avet.set_attr('pix_err', pix_err)

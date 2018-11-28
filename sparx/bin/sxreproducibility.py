@@ -32,15 +32,22 @@ from __future__ import print_function
 #
 #
 from builtins import range
-import os
+import EMAN2_cppwrap
 import global_def
-from   global_def     import *
-from   optparse       import OptionParser
+import numpy
+import optparse
+import os
+import sparx_global_def
+import sparx_statistics
+import sparx_utilities
+import statistics
 import sys
+import time
+import utilities
 def main():
 	progname = os.path.basename(sys.argv[0])
 	usage = progname + " averages1 averages2 --th_grp"
-	parser = OptionParser(usage,version=SPARXVERSION)
+	parser = optparse.OptionParser(usage,version=sparx_global_def.SPARXVERSION)
 	parser.add_option("--T",           type="int",     default=0,        help=" Threshold for matching")
 	parser.add_option("--J",           type="int",     default=50,       help=" J")
 	parser.add_option("--max_branching",         type="int",     default=40,        help=" maximum branching")
@@ -49,36 +56,32 @@ def main():
 	(options, args) = parser.parse_args()
 
 	if global_def.CACHE_DISABLE:
-		from utilities import disable_bdb_cache
-		disable_bdb_cache()
+		sparx_utilities.disable_bdb_cache()
 
 	global_def.BATCH = True
 
-	from numpy import array
-	from statistics import k_means_stab_bbenum
 
 	R = len(args)
 	Parts = []
 	mem = [0]*R
 	avg = [0]*R
 	for r in range(R):
-		data = EMData.read_images(args[r])
+		data = EMAN2_cppwrap.EMData.read_images(args[r])
 		avg[r] = len(data)
 		
 		part = []
 		for k in range(len(data)):
 			lid = data[k].get_attr('members') 
 			mem[r] += len(lid)
-			lid = array(lid, 'int32') 
+			lid = numpy.array(lid, 'int32') 
 			lid.sort() 
 			part.append(lid.copy())
 		Parts.append(part)
 
 	if options.timing:
-		from time import time
-		time1 = time()
+		time1 = time.time()
 
-	MATCH, STB_PART, CT_s, CT_t, ST, st = k_means_stab_bbenum(Parts, T=options.T, J=options.J, max_branching=options.max_branching, stmult=0.1, branchfunc=2)
+	MATCH, STB_PART, CT_s, CT_t, ST, st = sparx_statistics.k_means_stab_bbenum(Parts, T=options.T, J=options.J, max_branching=options.max_branching, stmult=0.1, branchfunc=2)
 
 	if options.verbose:
 		print(MATCH)
@@ -112,7 +115,7 @@ def main():
 	print("     number of matched particles = %5d"%(sum(CT_s)))
 
 	if options.timing:
-		print("Elapsed time = ", time() - time1)
+		print("Elapsed time = ", time.time() - time1)
 
 	global_def.BATCH = False
 

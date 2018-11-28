@@ -32,15 +32,21 @@ from __future__ import print_function
 #
 #
 
-import os
+import applications
+import development
 import global_def
-from   global_def import *
-from   optparse   import OptionParser
+import mpi
+import optparse
+import os
+import sparx_applications
+import sparx_global_def
+import sparx_utilities
 import sys
+import utilities
 def main():
 	progname = os.path.basename(sys.argv[0])
 	usage    = progname + " stack outdir --ir --ou --delta --dpsi --lf --hf --rand_seed --maxit --debug --noweights --trials --given --first_zero --weights --MPIGA--pcross --pmut --maxgen --MPI --trials"
-	parser   = OptionParser(usage, version = SPARXVERSION)
+	parser   = optparse.OptionParser(usage, version = sparx_global_def.SPARXVERSION)
 	parser.add_option("--ir",         type="float",        default=-1,       help="Inner radius of particle (set to 1)")
 	parser.add_option("--ou",         type="float",        default=-1,       help="Outer radius of particle < int(nx/2)-1")
 	parser.add_option("--delta",      type="float",        default=5.0,      help="Angle step" )
@@ -69,31 +75,25 @@ def main():
 		else:                 weights = True
 
 		if global_def.CACHE_DISABLE:
-			from utilities import disable_bdb_cache
-			disable_bdb_cache()
+			sparx_utilities.disable_bdb_cache()
 		if options.MPIGA:
-			from development import cml2_main_mpi
 			global_def.BATCH = True
 			cml2_main_mpi(args[0], args[1], options.ir, options.ou, options.delta, options.dpsi, 
 				      options.lf, options.hf, options.rand_seed, options.maxit, options.given, options.first_zero, 
 				      weights, options.debug, options.maxgen, options.pcross, options.pmut)
 			global_def.BATCH = False
 		elif options.MPI:
-			from mpi import mpi_init
-			sys.argv = mpi_init(len(sys.argv),sys.argv)
+			sys.argv = mpi.mpi_init(len(sys.argv),sys.argv)
 
-			from applications import cml_find_structure_MPI2
 			global_def.BATCH = True
-			cml_find_structure_MPI2(args[0], args[1], options.ir, options.ou, options.delta, options.dpsi, 
+			sparx_applications.cml_find_structure_MPI2(args[0], args[1], options.ir, options.ou, options.delta, options.dpsi, 
 				    options.lf, options.hf, options.rand_seed, options.maxit, options.given, options.first_zero, 
 				    weights, options.debug, options.trials)
 			global_def.BATCH = False
-			from mpi import mpi_finalize
-			mpi_finalize()
+			mpi.mpi_finalize()
 		else:
-			from applications import cml_find_structure_main
 			global_def.BATCH = True
-			cml_find_structure_main(args[0], args[1], options.ir, options.ou, options.delta, options.dpsi, 
+			sparx_applications.cml_find_structure_main(args[0], args[1], options.ir, options.ou, options.delta, options.dpsi, 
 				    options.lf, options.hf, options.rand_seed, options.maxit, options.given, options.first_zero, 
 				    weights, options.debug, options.trials)
 			global_def.BATCH = False

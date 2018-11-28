@@ -32,19 +32,20 @@ from __future__ import print_function
 #
 #
 
+import EMAN2
+import EMAN2_cppwrap
+import functools
+import global_def
+import optparse
+import os
+import sparx
+import subprocess
+import sys
 from builtins import range
 from builtins import object
-import sys
-import os
-from subprocess import *
-from functools import partial  # Use to connect event-source widget and event handler
 from PyQt4.Qt import *
 from PyQt4 import QtGui
 from PyQt4 import QtCore
-from EMAN2 import *
-from EMAN2_cppwrap import *
-from global_def import *
-from sparx import *
 
 # ========================================================================================
 # Helper Functions
@@ -5380,7 +5381,6 @@ class SXMainWindow(QMainWindow): # class SXMainWindow(QWidget):
 # ========================================================================================
 
 def main():
-	from optparse import OptionParser
 	
 	progname = os.path.basename(sys.argv[0])
 	usage = progname + """ 
